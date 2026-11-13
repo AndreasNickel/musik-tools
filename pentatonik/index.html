@@ -1,0 +1,826 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Skalen &amp; Akkorde – Griffbrett</title>
+<!-- Installation als App (Home-Bildschirm) und Offline-Betrieb -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Griffbrett">
+<meta name="theme-color" content="#f7f5f0" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#161513" media="(prefers-color-scheme: dark)">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<style>
+  :root {
+    --bg: #f7f5f0; --panel: #ffffff; --ink: #1f1d1a; --muted: #77716a;
+    --line: #d9d3c8; --wood: #efe6d6; --fret: #b9ad99; --string: #8a7f70;
+    --note: #2f2b27; --note-ink: #fff; --root: #c4482b; --blue: #2f6db3; --char: #1f8a70;
+    --dim: rgba(47,43,39,.14); --dim-ink: rgba(47,43,39,.45); --hover: rgba(196,72,43,.18);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #161513; --panel: #201e1b; --ink: #ece7df; --muted: #9a938a;
+      --line: #36322d; --wood: #2a2622; --fret: #5c544a; --string: #8f8578;
+      --note: #ece7df; --note-ink: #161513; --root: #e2694c; --blue: #6aa3e8; --char: #3fbf98;
+      --dim: rgba(236,231,223,.12); --dim-ink: rgba(236,231,223,.4); --hover: rgba(226,105,76,.25);
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+         font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  main { max-width: 1500px; margin: 0 auto; padding: 24px 20px 40px; }
+  h1 { font-size: 22px; margin: 0 0 14px; letter-spacing: -.01em; }
+  .tabs { display: flex; gap: 4px; margin-bottom: 14px; border-bottom: 1px solid var(--line); }
+  .tabs button { font: inherit; font-weight: 600; border: 0; background: transparent; color: var(--muted);
+                 padding: 8px 16px; cursor: pointer; border-bottom: 3px solid transparent; margin-bottom: -1px; }
+  .tabs button.on { color: var(--ink); border-bottom-color: var(--root); }
+  .controls { display: flex; flex-wrap: wrap; gap: 14px 22px; align-items: flex-end;
+              background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
+              padding: 14px 16px; margin-bottom: 12px; }
+  .controls.shared { background: transparent; border-style: dashed; padding: 10px 16px; }
+  .ctl { display: flex; flex-direction: column; gap: 5px; }
+  .ctl > span { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+  select, input[type=text] { font: inherit; padding: 6px 8px; border-radius: 8px; border: 1px solid var(--line);
+           background: var(--bg); color: var(--ink); }
+  input[type=text] { width: 320px; max-width: 80vw; }
+  .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+  .seg button { font: inherit; border: 0; background: transparent; color: var(--ink);
+                padding: 6px 11px; cursor: pointer; border-right: 1px solid var(--line); }
+  .seg button:last-child { border-right: 0; }
+  .seg button.on { background: var(--ink); color: var(--bg); }
+  .seg button:disabled { opacity: .35; cursor: default; }
+  .btn { font: inherit; padding: 6px 12px; border-radius: 8px; border: 1px solid var(--line);
+         background: var(--bg); color: var(--ink); cursor: pointer; }
+  label.chk { display: flex; align-items: center; gap: 6px; cursor: pointer; padding: 6px 0; }
+  .opts { display: flex; flex-wrap: wrap; gap: 0 16px; }
+  .info { display: flex; flex-wrap: wrap; gap: 6px 28px; margin: 10px 0 14px; align-items: baseline; }
+  .title { font-size: 20px; font-weight: 650; }
+  .bigname { font-size: 30px; font-weight: 700; letter-spacing: -.01em; }
+  .notes { font-size: 16px; }
+  .notes .r { color: var(--root); font-weight: 650; }
+  .notes .b { color: var(--blue); font-weight: 650; }
+  .notes .c { color: var(--char); font-weight: 650; }
+  .notes small { color: var(--muted); font-size: 12px; margin-left: 2px; }
+  .muted { color: var(--muted); }
+  .err { color: var(--root); }
+  .cands { display: flex; flex-wrap: wrap; gap: 8px; margin: -4px 0 14px; align-items: center; }
+  .cands button { font: inherit; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--line);
+                  background: var(--panel); color: var(--ink); cursor: pointer; }
+  .cands button.on { border-color: var(--root); box-shadow: inset 0 0 0 1px var(--root); font-weight: 650; }
+  .board { background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
+           padding: 10px 6px; overflow-x: auto; }
+  svg { display: block; }
+  svg .hit { fill: transparent; cursor: pointer; }
+  svg .hit:hover { fill: var(--hover); }
+  .legend { display: flex; flex-wrap: wrap; gap: 18px; margin-top: 12px; color: var(--muted); font-size: 13px; }
+  .legend i { display: inline-block; width: 12px; height: 12px; border-radius: 50%; vertical-align: -1px; margin-right: 6px; }
+  .legend i.ring { background: transparent !important; border: 2px solid var(--muted); }
+  .hint { color: var(--muted); font-size: 13px; margin-top: 16px; max-width: 860px; }
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Skalen &amp; Akkorde auf dem Griffbrett</h1>
+
+  <div class="tabs" id="tabs">
+    <button data-v="scales">Skalen</button><button data-v="chords">Akkorde</button>
+  </div>
+
+  <!-- gemeinsame Einstellungen -->
+  <div class="controls shared">
+    <div class="ctl"><span>Stimmung</span><select id="tuning"></select></div>
+    <div class="ctl"><span>Bünde</span>
+      <select id="frets"><option>12</option><option>15</option><option>17</option><option>22</option><option>24</option></select>
+    </div>
+    <div class="ctl"><span>Beschriftung</span>
+      <div class="seg" id="label">
+        <button data-v="note">Tonnamen</button><button data-v="interval">Intervalle</button>
+      </div>
+    </div>
+    <div class="ctl"><span>Namen</span>
+      <label class="chk"><input type="checkbox" id="german"> Deutsch (H, B, Fis…)</label>
+    </div>
+  </div>
+
+  <!-- Reiter Skalen -->
+  <section id="pScales">
+    <div class="controls">
+      <div class="ctl"><span>Grundton</span><select id="root"></select></div>
+      <div class="ctl"><span>Skala</span><select id="scale"></select></div>
+      <div class="ctl"><span id="boxTitle">Position</span><div class="seg" id="box"></div></div>
+      <div class="ctl"><span>Optionen</span>
+        <div class="opts">
+          <label class="chk" id="blueWrap"><input type="checkbox" id="blue"> Blue Note ergänzen</label>
+          <label class="chk" id="charWrap"><input type="checkbox" id="char"> Charakterton hervorheben</label>
+        </div>
+      </div>
+    </div>
+    <div class="info">
+      <div class="title" id="title"></div>
+      <div class="notes" id="notes"></div>
+      <div class="muted" id="rel"></div>
+    </div>
+  </section>
+
+  <!-- Reiter Akkorde -->
+  <section id="pChords">
+    <div class="controls">
+      <div class="ctl"><span>Eingabe</span>
+        <div class="seg" id="cmode">
+          <button data-v="build">Baukasten</button><button data-v="text">Töne eingeben</button><button data-v="grip">Griff eingeben</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="controls" id="cBuild">
+      <div class="ctl"><span>Grundton</span><select id="cRoot"></select></div>
+      <div class="ctl"><span>Dreiklang</span>
+        <select id="cBase">
+          <option value="maj">Dur</option><option value="min">Moll</option>
+          <option value="dim">vermindert</option><option value="aug">übermäßig</option>
+          <option value="sus2">sus2</option><option value="sus4">sus4</option><option value="pow">Powerchord (1–5)</option>
+        </select>
+      </div>
+      <div class="ctl"><span>Quinte</span>
+        <select id="cFifth">
+          <option value="std">Standard</option><option value="b5">♭5</option><option value="s5">♯5</option><option value="omit">weglassen</option>
+        </select>
+      </div>
+      <div class="ctl"><span>Sexte / Septime</span>
+        <select id="cSeventh">
+          <option value="none">keine</option><option value="6">6</option><option value="7">7 (kleine Septime)</option>
+          <option value="maj7">maj7 (große Septime)</option><option value="dim7">°7 (verminderte Septime)</option>
+        </select>
+      </div>
+      <div class="ctl"><span>Optionstöne</span><div class="seg" id="cExt"></div></div>
+      <div class="ctl"><span>Bass</span><select id="cBass"></select></div>
+      <div class="ctl"><span>Überlagerung</span>
+        <label class="chk"><input type="checkbox" id="cOverlay"> Skala aus Reiter „Skalen“ einblenden</label>
+      </div>
+    </div>
+
+    <div class="controls" id="cText">
+      <div class="ctl"><span>Töne (der erste ist der Basston)</span>
+        <input type="text" id="cTextIn" placeholder="z. B. E G C  oder  C E G B D" autocomplete="off" spellcheck="false">
+      </div>
+      <div class="muted" style="font-size:13px; padding-bottom:8px;">Trennung mit Leerzeichen, Komma oder Bindestrich. Schreibweisen: C#, Db, Cis, Des, Es, As, H, B …</div>
+    </div>
+
+    <div class="controls" id="cGrip">
+      <div class="ctl"><span>Griff</span><div class="title" id="gripTab" style="font-family: ui-monospace, Menlo, Consolas, monospace;"></div></div>
+      <button class="btn" id="gripClear">Griff löschen</button>
+      <div class="muted" style="font-size:13px; padding-bottom:8px;">Aufs Griffbrett klicken: ein Ton pro Saite, nochmal klicken entfernt ihn. Für eine Leersaite links neben den Sattel klicken. Saiten ohne Ton gelten als gedämpft (x).</div>
+    </div>
+
+    <div class="info">
+      <div class="bigname" id="cName"></div>
+      <div class="notes" id="cNotes"></div>
+    </div>
+    <div class="cands" id="cCands"></div>
+  </section>
+
+  <div class="board"><svg id="svg"></svg></div>
+
+  <div class="legend" id="legend"></div>
+
+  <p class="hint" id="hintScales">
+    Positionen: Bei Pentatonik und Blues gibt es 5 Boxen mit zwei Tönen pro Saite (Box 1 beginnt mit dem Grundton auf der
+    tiefsten Saite; die Blue Note liegt jeweils im Bundbereich der Box). Bei 7-Ton-Skalen gibt es 7 Positionen mit drei Tönen
+    pro Saite, Position 1 beginnt ebenfalls mit dem Grundton auf der tiefsten Saite. In offenen und Drop-Stimmungen
+    werden die Positionen nach demselben Prinzip berechnet, dort entstehen andere Griffbilder als in Standardstimmung.
+    Der Charakterton ist der Ton, der einen Modus von Dur bzw. natürlichem Moll unterscheidet.
+  </p>
+  <p class="hint" id="hintChords">
+    Namensfindung: Jeder Ton der Eingabe wird als möglicher Grundton geprüft. Bevorzugt werden Deutungen mit dem Grundton im Bass,
+    mit Terz und möglichst wenigen Alterationen; die übrigen erscheinen als Alternativen (z. B. C6 = Am7/C) und lassen sich anklicken.
+    Fehlt die Quinte, wird das wie auf der Gitarre üblich toleriert. Ein „13“ setzt 9 und 11 nicht voraus.
+  </p>
+</main>
+
+<script>
+// ================= Daten =================
+const SCALES = [
+  { id: 'pent-minor', group: 'Pentatonik & Blues', name: 'Moll-Pentatonik',
+    ints: [0, 3, 5, 7, 10], labels: ['1', '♭3', '4', '5', '♭7'],
+    addBlue: { iv: 6, label: '♭5' }, rel: ['pent-major', 3, 'gleiche Töne wie'] },
+  { id: 'pent-major', group: 'Pentatonik & Blues', name: 'Dur-Pentatonik',
+    ints: [0, 2, 4, 7, 9], labels: ['1', '2', '3', '5', '6'],
+    addBlue: { iv: 3, label: '♭3' }, rel: ['pent-minor', 9, 'gleiche Töne wie'] },
+  { id: 'blues-minor', group: 'Pentatonik & Blues', name: 'Moll-Blues',
+    ints: [0, 3, 5, 6, 7, 10], labels: ['1', '♭3', '4', '♭5', '5', '♭7'], blue: 6,
+    boxBase: [0, 3, 5, 7, 10], rel: ['blues-major', 3, 'gleiche Töne wie'] },
+  { id: 'blues-major', group: 'Pentatonik & Blues', name: 'Dur-Blues',
+    ints: [0, 2, 3, 4, 7, 9], labels: ['1', '2', '♭3', '3', '5', '6'], blue: 3,
+    boxBase: [0, 2, 4, 7, 9], rel: ['blues-minor', 9, 'gleiche Töne wie'] },
+  { id: 'major', group: 'Dur & Moll', name: 'Dur (Ionisch)',
+    ints: [0, 2, 4, 5, 7, 9, 11], labels: ['1', '2', '3', '4', '5', '6', '7'], rel: ['minor', 9, 'gleiche Töne wie'] },
+  { id: 'minor', group: 'Dur & Moll', name: 'Natürlich Moll (Äolisch)',
+    ints: [0, 2, 3, 5, 7, 8, 10], labels: ['1', '2', '♭3', '4', '5', '♭6', '♭7'], rel: ['major', 3, 'gleiche Töne wie'] },
+  { id: 'harm-minor', group: 'Dur & Moll', name: 'Harmonisch Moll',
+    ints: [0, 2, 3, 5, 7, 8, 11], labels: ['1', '2', '♭3', '4', '5', '♭6', '7'], char: 11 },
+  { id: 'mel-minor', group: 'Dur & Moll', name: 'Melodisch Moll (Jazz-Moll)',
+    ints: [0, 2, 3, 5, 7, 9, 11], labels: ['1', '2', '♭3', '4', '5', '6', '7'], char: 9 },
+  { id: 'dorian', group: 'Kirchentonarten (Modi)', name: 'Dorisch',
+    ints: [0, 2, 3, 5, 7, 9, 10], labels: ['1', '2', '♭3', '4', '5', '6', '♭7'], char: 9, rel: ['major', 10, '2. Modus von'] },
+  { id: 'phrygian', group: 'Kirchentonarten (Modi)', name: 'Phrygisch',
+    ints: [0, 1, 3, 5, 7, 8, 10], labels: ['1', '♭2', '♭3', '4', '5', '♭6', '♭7'], char: 1, rel: ['major', 8, '3. Modus von'] },
+  { id: 'lydian', group: 'Kirchentonarten (Modi)', name: 'Lydisch',
+    ints: [0, 2, 4, 6, 7, 9, 11], labels: ['1', '2', '3', '♯4', '5', '6', '7'], char: 6, rel: ['major', 7, '4. Modus von'] },
+  { id: 'mixolydian', group: 'Kirchentonarten (Modi)', name: 'Mixolydisch',
+    ints: [0, 2, 4, 5, 7, 9, 10], labels: ['1', '2', '3', '4', '5', '6', '♭7'], char: 10, rel: ['major', 5, '5. Modus von'] },
+  { id: 'locrian', group: 'Kirchentonarten (Modi)', name: 'Lokrisch',
+    ints: [0, 1, 3, 5, 6, 8, 10], labels: ['1', '♭2', '♭3', '4', '♭5', '♭6', '♭7'], char: 6, rel: ['major', 1, '7. Modus von'] },
+  { id: 'phryg-dom', group: 'Weitere', name: 'Phrygisch-Dominant (Spanisch)',
+    ints: [0, 1, 4, 5, 7, 8, 10], labels: ['1', '♭2', '3', '4', '5', '♭6', '♭7'], char: 4, rel: ['harm-minor', 5, '5. Modus von'] }
+];
+const SCALE = Object.fromEntries(SCALES.map(s => [s.id, s]));
+
+const TUNINGS = [
+  { id: 'std',    name: 'Standard',                     open: [40, 45, 50, 55, 59, 64], names: ['E','A','D','G','B','E'] },
+  { id: 'eb',     name: 'Halbton tiefer (E♭-Standard)', open: [39, 44, 49, 54, 58, 63], names: ['Eb','Ab','Db','Gb','Bb','Eb'] },
+  { id: 'dstd',   name: 'Ganzton tiefer (D-Standard)',  open: [38, 43, 48, 53, 57, 62], names: ['D','G','C','F','A','D'] },
+  { id: 'dropd',  name: 'Drop D',                       open: [38, 45, 50, 55, 59, 64], names: ['D','A','D','G','B','E'] },
+  { id: 'dropc',  name: 'Drop C',                       open: [36, 43, 48, 53, 57, 62], names: ['C','G','C','F','A','D'] },
+  { id: 'dadgad', name: 'DADGAD',                       open: [38, 45, 50, 55, 57, 62], names: ['D','A','D','G','A','D'] },
+  { id: 'openg',  name: 'Open G',                       open: [38, 43, 50, 55, 59, 62], names: ['D','G','D','G','B','D'] },
+  { id: 'opend',  name: 'Open D',                       open: [38, 45, 50, 54, 57, 62], names: ['D','A','D','F#','A','D'] },
+  { id: 'opene',  name: 'Open E',                       open: [40, 47, 52, 56, 59, 64], names: ['E','B','E','G#','B','E'] },
+  { id: 'opena',  name: 'Open A',                       open: [40, 45, 52, 57, 61, 64], names: ['E','A','E','A','C#','E'] },
+  { id: 'openc',  name: 'Open C',                       open: [36, 43, 48, 55, 60, 64], names: ['C','G','C','G','C','E'] }
+];
+const TUNING = Object.fromEntries(TUNINGS.map(t => [t.id, t]));
+
+// Optionstöne im Baukasten: [Anzeige, Intervall]
+const EXTS = [['♭9', 1], ['9', 2], ['♯9', 3], ['11', 5], ['♯11', 6], ['♭13', 8], ['13', 9]];
+
+// ================= Zustand =================
+const state = {
+  tab: 'scales', tuning: 'std', frets: 15, label: 'note', german: true,
+  root: 9, scale: 'pent-minor', box: 0, blue: false, char: true,
+  cmode: 'build', cRoot: 0, cBase: 'maj', cFifth: 'std', cSeventh: '7', cExt: [], cBass: -1, cOverlay: false,
+  cText: 'E G C', grip: [null, 3, 2, 0, 1, 0], cPick: 0
+};
+try {
+  const old = JSON.parse(localStorage.getItem('skalen-v2') || '{}');
+  Object.assign(state, old, JSON.parse(localStorage.getItem('skalen-v3') || '{}'));
+} catch (e) {}
+if (!SCALE[state.scale]) state.scale = 'pent-minor';
+if (!TUNING[state.tuning]) state.tuning = 'std';
+if (!Array.isArray(state.grip) || state.grip.length !== 6) state.grip = [null, null, null, null, null, null];
+
+// ================= Notennamen / Schreibweise =================
+const LETTERS = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
+const LETTER_PC = [0, 2, 4, 5, 7, 9, 11];
+const mod12 = n => ((n % 12) + 12) % 12;
+const normAcc = n => { const m = mod12(n); return m > 6 ? m - 12 : m; };
+const degreeOf = label => parseInt(label.replace(/[^0-9]/g, ''), 10);
+
+function fmt(letter, acc) {
+  if (!state.german) return LETTERS[letter] + (acc > 0 ? '♯'.repeat(acc) : '♭'.repeat(-acc));
+  const L = LETTERS[letter];
+  if (acc === 0) return L === 'B' ? 'H' : L;
+  if (acc > 0) return (L === 'B' ? 'H' : L) + 'is'.repeat(acc);
+  if (L === 'B') return acc === -1 ? 'B' : 'Heses';
+  if (L === 'E' || L === 'A') return L + 's' + 'es'.repeat(-acc - 1);
+  return L + 'es'.repeat(-acc);
+}
+function parseName(n) {
+  const letter = LETTERS.indexOf(n[0].toUpperCase());
+  const acc = n.slice(1) === '#' ? 1 : n.slice(1) === 'b' ? -1 : 0;
+  return { letter, acc };
+}
+function spellTones(rootLetter, rootPc, ints, labels) {
+  return ints.map((iv, i) => {
+    const letter = (rootLetter + degreeOf(labels[i]) - 1) % 7;
+    return { letter, acc: normAcc(rootPc + iv - LETTER_PC[letter]) };
+  });
+}
+// preferNatural: bei Akkorden einen Stammton (C statt His) immer bevorzugen
+function spellRoot(pc, scale, preferNatural = false) {
+  const cands = [];
+  for (let l = 0; l < 7; l++) {
+    const acc = normAcc(pc - LETTER_PC[l]);
+    if (Math.abs(acc) <= 1) cands.push({ letter: l, acc });
+  }
+  if (preferNatural && cands.some(c => c.acc === 0)) return cands.find(c => c.acc === 0);
+  const score = c => spellTones(c.letter, pc, scale.ints, scale.labels)
+    .reduce((s, t) => s + Math.abs(t.acc) + (Math.abs(t.acc) >= 2 ? 10 : 0), 0);
+  cands.sort((a, b) => score(a) - score(b)
+    || Math.abs(a.acc) - Math.abs(b.acc)
+    || (pc === 6 ? b.acc - a.acc : a.acc - b.acc));
+  return cands[0];
+}
+// Einzelton ohne Zusammenhang (z. B. Bass außerhalb des Akkords)
+const plainName = pc => { const r = spellRoot(pc, SCALE.major); return fmt(r.letter, r.acc); };
+
+// Texteingabe -> Tonhöhenklassen
+function parseNoteToken(tok) {
+  const m = tok.match(/^([A-Ha-h])(.*)$/);
+  if (!m) return null;
+  let L = m[1].toUpperCase(), rest = m[2].toLowerCase();
+  let letter, acc = 0;
+  if (L === 'H') { letter = 6; }
+  else if (L === 'B' && state.german && rest === '') { letter = 6; acc = -1; }
+  else letter = LETTERS.indexOf(L);
+  if (letter < 0) return null;
+  // Rest zerlegen: #, ♯, is (+1)  |  b, ♭, es, s (-1)
+  let r = rest;
+  while (r.length) {
+    if (r.startsWith('is')) { acc++; r = r.slice(2); }
+    else if (r.startsWith('es')) { acc--; r = r.slice(2); }
+    else if (r[0] === '#' || r[0] === '♯') { acc++; r = r.slice(1); }
+    else if (r[0] === 'b' || r[0] === '♭') { acc--; r = r.slice(1); }
+    else if (r[0] === 's' && (L === 'E' || L === 'A')) { acc--; r = r.slice(1); }
+    else return null;
+  }
+  return mod12(LETTER_PC[letter] + acc);
+}
+
+// ================= Akkord-Namensfindung =================
+// Deutet eine Intervallmenge (relativ zum angenommenen Grundton). Liefert null, wenn nicht deutbar.
+function analyzeChord(I) {
+  const has = n => I.has(n), used = new Set([0]), take = n => used.add(n), free = n => has(n) && !used.has(n);
+  const lab = { 0: '1' };
+  let q, fifthAlt = '', seventh = null, sixth = false, e9 = false, e11 = false, e13 = false, noFifth = false;
+  const alts = [];
+
+  // Terz bzw. Vorhalt
+  if (has(4)) { q = 'maj'; take(4); lab[4] = '3'; }
+  else if (has(3)) { q = 'min'; take(3); lab[3] = '♭3'; }
+  else if (has(5)) { q = 'sus4'; take(5); lab[5] = '4'; }
+  else if (has(2)) { q = 'sus2'; take(2); lab[2] = '2'; }
+  else q = 'no3';
+
+  // Quinte
+  if (has(7)) { take(7); lab[7] = '5'; }
+  else if (q === 'min' && has(6)) { q = 'dim'; take(6); lab[6] = '♭5'; }
+  else if (q === 'maj' && has(8)) { q = 'aug'; take(8); lab[8] = '♯5'; }
+  else if (has(6)) { fifthAlt = '♭5'; take(6); lab[6] = '♭5'; }
+  else if (has(8)) { fifthAlt = '♯5'; take(8); lab[8] = '♯5'; }
+  else noFifth = true;
+
+  // Septime
+  if (q === 'dim' && has(9) && !has(10) && !has(11)) { seventh = 'd7'; take(9); lab[9] = '♭♭7'; }
+  else if (has(10)) { seventh = '7'; take(10); lab[10] = '♭7'; }
+  else if (has(11)) { seventh = 'M7'; take(11); lab[11] = '7'; }
+
+  // Optionstöne
+  if (free(1)) { take(1); lab[1] = '♭9'; alts.push('♭9'); }
+  if (free(2)) { take(2); lab[2] = '9'; e9 = true; }
+  if (free(3)) { take(3); lab[3] = '♯9'; alts.push('♯9'); }
+  if (free(5)) { take(5); lab[5] = '11'; e11 = true; }
+  if (free(6)) { take(6); lab[6] = '♯11'; alts.push('♯11'); }
+  if (free(8)) { take(8); if (seventh) { lab[8] = '♭13'; alts.push('♭13'); } else { lab[8] = '♭6'; alts.push('♭6'); } }
+  if (free(9)) { take(9); if (seventh) { lab[9] = '13'; e13 = true; } else { lab[9] = '6'; sixth = true; } }
+
+  if ([...I].some(n => !used.has(n))) return null;      // z. B. kleine und große Septime zugleich
+
+  // ---- Namen zusammensetzen
+  if (I.size === 1) return { name: '', lab, score: 0 };
+  if (q === 'no3' && !seventh && I.size === 2 && has(7)) return { name: '5', lab, score: 0.4 };
+
+  const num = seventh && seventh !== 'd7' ? (e13 ? 13 : e11 ? 11 : e9 ? 9 : 7) : 7;
+  const adds = [];
+  if (!seventh || seventh === 'd7') {
+    if (e9 && !(sixth && q !== 'aug' && q !== 'dim')) adds.push('9');
+    if (e11) adds.push('11');
+  }
+  let core;
+  if (q === 'dim') {
+    core = seventh === 'd7' ? '°7' : seventh === '7' ? 'm' + num + '♭5' : seventh === 'M7' ? '°(maj' + num + ')' : '°';
+  } else if (q === 'aug') {
+    core = seventh === '7' ? num + '♯5' : seventh === 'M7' ? 'maj' + num + '♯5' : '+';
+    if (sixth) adds.unshift('6');
+  } else {
+    const m = q === 'min' ? 'm' : '';
+    if (seventh === '7') core = m + num;
+    else if (seventh === 'M7') core = q === 'min' ? 'm(maj' + num + ')' : 'maj' + num;
+    else core = m + (sixth ? (e9 ? '6/9' : '6') : '');
+  }
+  const sus = q === 'sus4' ? 'sus4' : q === 'sus2' ? 'sus2' : q === 'no3' ? '(no3)' : '';
+  const allAlts = (fifthAlt ? [fifthAlt] : []).concat(alts);
+  let name = core + (sus && sus !== '(no3)' ? sus : '');
+  if (adds.length) name += 'add' + adds.join('/');
+  if (allAlts.length) name += (allAlts.length === 1 && /\d$/.test(name) && !sus) ? allAlts[0] : '(' + allAlts.join(',') + ')';
+  if (sus === '(no3)') name += '(no3)';
+
+  // ---- Bewertung: kleiner = naheliegender
+  let score = 0;
+  score += alts.length * (seventh ? 1.5 : 2.5);
+  if (fifthAlt) score += seventh ? 1 : 2.5;
+  score += adds.length * 1;
+  if (sixth) score += 0.5;
+  if (num > 7) score += 0.3;
+  if (q === 'sus4' || q === 'sus2') score += 1.2;
+  if (q === 'no3') score += 2.5;
+  if (q === 'dim' || q === 'aug') score += 0.6;
+  if (noFifth) score += 0.3;
+  if (q === 'min' && seventh === 'M7') score += 0.5;
+  return { name, lab, score };
+}
+
+// Alle Deutungen einer Tonmenge, sortiert. pcs: Set der Tonhöhenklassen, bass: pc oder null
+function recognize(pcs, bass) {
+  const res = [];
+  for (const r of pcs) {
+    const I = new Set([...pcs].map(p => mod12(p - r)));
+    const a = analyzeChord(I);
+    if (!a) continue;
+    const ints = [...I].sort((x, y) => x - y);
+    const labels = ints.map(i => a.lab[i]);
+    const rs = spellRoot(r, { ints, labels }, true);
+    const spelled = spellTones(rs.letter, r, ints, labels);
+    const tones = ints.map((iv, k) => ({ iv, pc: mod12(r + iv), label: labels[k], name: fmt(spelled[k].letter, spelled[k].acc) }));
+    let name = fmt(rs.letter, rs.acc) + a.name, score = a.score;
+    if (bass !== null && bass !== r) {
+      name += '/' + tones.find(t => t.pc === bass).name;
+      score += 2.2;
+    }
+    res.push({ root: r, name, score, tones });
+  }
+  res.sort((x, y) => x.score - y.score);
+  // nur naheliegende Alternativen behalten
+  return res.filter(c => c.score - res[0].score <= 3.2).slice(0, 6);
+}
+
+// Baukasten -> Intervallmenge
+function builderIntervals() {
+  const I = new Set([0]);
+  const b = state.cBase;
+  const third = { maj: 4, min: 3, dim: 3, aug: 4, sus2: 2, sus4: 5, pow: null }[b];
+  if (third !== null) I.add(third);
+  const stdFifth = b === 'dim' ? 6 : b === 'aug' ? 8 : 7;
+  const fifth = { std: stdFifth, b5: 6, s5: 8, omit: null }[state.cFifth];
+  if (fifth !== null) I.add(fifth);
+  const sev = { none: null, '6': 9, '7': 10, maj7: 11, dim7: 9 }[state.cSeventh];
+  if (sev !== null) I.add(sev);
+  EXTS.forEach(([n, iv]) => { if (state.cExt.includes(n)) I.add(iv); });
+  return I;
+}
+
+// ================= Positionen (Skalen) =================
+function computeBox(k, scale, open) {
+  const base = scale.boxBase || scale.ints;
+  const nps = base.length <= 5 ? 2 : 3;
+  const pcs = base.map(i => mod12(state.root + i));
+  const startFret = mod12(pcs[k] - open[0]);
+  const pitches = [];
+  for (let p = open[0] + startFret; pitches.length < nps * 6; p++) if (pcs.includes(mod12(p))) pitches.push(p);
+  let cells = [];
+  for (let s = 0; s < 6; s++) for (let j = 0; j < nps; j++) cells.push([s, pitches[nps * s + j] - open[s]]);
+  if (Math.min(...cells.map(c => c[1])) < 0) cells = cells.map(([s, f]) => [s, f + 12]);
+  const set = new Set(), ranges = [];
+  for (const shift of [-12, 0, 12, 24]) {
+    const fr = cells.map(c => c[1] + shift);
+    if (Math.min(...fr) >= 0 && Math.max(...fr) <= state.frets) {
+      cells.forEach(([s, f]) => set.add(s + ':' + (f + shift)));
+      ranges.push([Math.min(...fr), Math.max(...fr)]);
+    }
+  }
+  return { set, ranges };
+}
+
+function currentScaleTones() {
+  const scale = SCALE[state.scale];
+  const r = spellRoot(state.root, scale);
+  const tones = scale.ints.map((iv, i) => ({ iv, label: scale.labels[i] }));
+  if (scale.addBlue && state.blue) tones.push({ iv: scale.addBlue.iv, label: scale.addBlue.label, added: true });
+  const spelled = spellTones(r.letter, state.root, tones.map(t => t.iv), tones.map(t => t.label));
+  tones.forEach((t, i) => {
+    t.name = fmt(spelled[i].letter, spelled[i].acc);
+    t.blue = t.added || t.iv === scale.blue;
+    t.char = state.char && scale.char === t.iv;
+    t.root = t.iv === 0;
+  });
+  return { scale, r, tones };
+}
+
+// ================= Griffbrett zeichnen =================
+const svg = document.getElementById('svg');
+const G = { FW: 58, SP: 34, X0: 80, Y0: 26 };
+function el(tag, attrs, text) {
+  const e = document.createElementNS('http://www.w3.org/2000/svg', tag);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  if (text !== undefined) e.textContent = text;
+  svg.appendChild(e);
+  return e;
+}
+const yOf = s => G.Y0 + (5 - s) * G.SP;
+const xOf = f => f === 0 ? G.X0 - 24 : G.X0 + (f - 0.5) * G.FW;
+
+// marks: [{s, f, kind: root|note|blue|char|dim|ghost, text}], opts: {clickable, muted:[s...]}
+function drawBoard(marks, opts = {}) {
+  const tuning = TUNING[state.tuning];
+  const N = state.frets, { FW, SP, X0, Y0 } = G;
+  const W = X0 + N * FW + 16, H = Y0 + 5 * SP + 44;
+  svg.innerHTML = '';
+  svg.setAttribute('width', W); svg.setAttribute('height', H);
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  const cs = getComputedStyle(document.documentElement), c = n => cs.getPropertyValue(n).trim();
+
+  el('rect', { x: X0, y: Y0 - 8, width: N * FW, height: 5 * SP + 16, fill: c('--wood'), rx: 3 });
+  const single = [3, 5, 7, 9, 15, 17, 19, 21], dbl = [12, 24];
+  single.filter(f => f <= N).forEach(f => el('circle', { cx: xOf(f), cy: Y0 + 2.5 * SP, r: 6, fill: c('--fret'), opacity: .45 }));
+  dbl.filter(f => f <= N).forEach(f => {
+    el('circle', { cx: xOf(f), cy: Y0 + 1.5 * SP, r: 6, fill: c('--fret'), opacity: .45 });
+    el('circle', { cx: xOf(f), cy: Y0 + 3.5 * SP, r: 6, fill: c('--fret'), opacity: .45 });
+  });
+  for (let f = 0; f <= N; f++) {
+    el('line', { x1: X0 + f * FW, y1: Y0 - 8, x2: X0 + f * FW, y2: Y0 + 5 * SP + 8,
+                 stroke: f === 0 ? c('--ink') : c('--fret'), 'stroke-width': f === 0 ? 5 : 2 });
+  }
+  for (let f = 1; f <= N; f++) {
+    const marked = single.includes(f) || dbl.includes(f);
+    el('text', { x: xOf(f), y: H - 10, 'text-anchor': 'middle', 'font-size': 12,
+                 fill: marked ? c('--ink') : c('--muted'), 'font-weight': marked ? 600 : 400 }, f);
+  }
+  for (let s = 0; s < 6; s++) {
+    el('line', { x1: X0 - 44, y1: yOf(s), x2: X0 + N * FW, y2: yOf(s), stroke: c('--string'), 'stroke-width': 1 + (5 - s) * 0.45 });
+    const p = parseName(tuning.names[s]);
+    let lbl = fmt(p.letter, p.acc);
+    if (s === 5) lbl = lbl.toLowerCase();
+    el('text', { x: 8, y: yOf(s) + 4, 'font-size': 13, 'font-weight': 600, fill: c('--muted') }, lbl);
+  }
+  (opts.muted || []).forEach(s => el('text', { x: xOf(0), y: yOf(s) + 5, 'text-anchor': 'middle', 'font-size': 15,
+                                                 'font-weight': 700, fill: c('--muted') }, '×'));
+
+  for (const m of marks) {
+    const x = xOf(m.f), y = yOf(m.s);
+    if (m.kind === 'ghost') { el('circle', { cx: x, cy: y, r: 6, fill: 'none', stroke: c('--muted'), 'stroke-width': 1.5 }); continue; }
+    const fill = { root: c('--root'), blue: c('--blue'), char: c('--char'), dim: c('--dim'), note: c('--note') }[m.kind];
+    const ink = m.kind === 'dim' ? c('--dim-ink') : m.kind === 'note' ? c('--note-ink') : '#fff';
+    el('circle', { cx: x, cy: y, r: 13.5, fill });
+    const t = m.text || '';
+    el('text', { x, y: y + 4, 'text-anchor': 'middle', 'font-size': t.length > 3 ? 9 : t.length > 2 ? 10 : 12,
+                 'font-weight': 600, fill: ink, 'pointer-events': 'none' }, t);
+  }
+
+  if (opts.clickable) {
+    for (let s = 0; s < 6; s++) for (let f = 0; f <= N; f++) {
+      const x = f === 0 ? X0 - 46 : X0 + (f - 1) * FW;
+      const w = f === 0 ? 44 : FW;
+      const r = el('rect', { x, y: yOf(s) - SP / 2, width: w, height: SP, class: 'hit', rx: 6 });
+      r.addEventListener('click', () => opts.clickable(s, f));
+    }
+  }
+}
+
+// ================= Ansicht Skalen =================
+function renderScales() {
+  const { scale, r, tones } = currentScaleTones();
+  const open = TUNING[state.tuning].open;
+  const box = state.box ? computeBox(state.box - 1, scale, open) : null;
+  const base = scale.boxBase || scale.ints;
+  const inRange = f => box.ranges.some(([a, b]) => f >= a && f <= b);
+  const marks = [];
+  for (let s = 0; s < 6; s++) for (let f = 0; f <= state.frets; f++) {
+    const iv = mod12(open[s] + f - state.root);
+    const t = tones.find(t => t.iv === iv);
+    if (!t) continue;
+    let active = true;
+    if (box) active = base.includes(iv) ? box.set.has(s + ':' + f) : inRange(f);
+    const kind = !active ? 'dim' : t.root ? 'root' : t.blue ? 'blue' : t.char ? 'char' : 'note';
+    marks.push({ s, f, kind, text: state.label === 'note' ? t.name : t.label });
+  }
+  drawBoard(marks);
+
+  $('title').textContent = fmt(r.letter, r.acc) + ' ' + scale.name;
+  $('notes').innerHTML = tones.slice().sort((a, b) => a.iv - b.iv).map(t => {
+    const cls = t.root ? 'r' : t.blue ? 'b' : t.char ? 'c' : '';
+    return `<span class="${cls}">${t.name}</span><small>${t.label}</small>`;
+  }).join(' &nbsp; ');
+  if (scale.rel) {
+    const [relId, shift, text] = scale.rel;
+    const rs = SCALE[relId], rpc = mod12(state.root + shift), rr = spellRoot(rpc, rs);
+    $('rel').textContent = `${text} ${fmt(rr.letter, rr.acc)} ${rs.name}`;
+  } else $('rel').textContent = '';
+  $('blueWrap').style.display = scale.addBlue ? '' : 'none';
+  $('charWrap').style.display = scale.char !== undefined ? '' : 'none';
+  setLegend([
+    ['root', 'Grundton'], ['note', 'Skalenton'],
+    tones.some(t => t.blue) && ['blue', 'Blue Note'],
+    tones.some(t => t.char) && ['char', 'Charakterton'],
+    state.box && ['dim', 'außerhalb der gewählten Position']
+  ]);
+}
+
+// ================= Ansicht Akkorde =================
+const EXT_LABELS = ['♭9', '9', '♯9', '11', '♯11', '♭13', '13', '6', '♭6'];
+function chordMarkKind(t) {
+  if (t.iv === 0) return 'root';
+  return EXT_LABELS.includes(t.label) ? 'char' : 'note';
+}
+
+function renderChords() {
+  const open = TUNING[state.tuning].open;
+  let cands = [], marks = [], error = '', muted = [], clickable = null, fixedRoot = null;
+
+  if (state.cmode === 'build') {
+    const I = builderIntervals();
+    const pcs = new Set([...I].map(i => mod12(state.cRoot + i)));
+    const bass = state.cBass >= 0 ? state.cBass : state.cRoot;
+    const bassInChord = pcs.has(bass);
+    const all = recognize(pcs, bassInChord ? bass : state.cRoot);
+    // Hauptname = Deutung mit dem gewählten Grundton
+    let main = all.find(c => c.root === state.cRoot);
+    if (!main) { error = 'Diese Kombination lässt sich nicht sinnvoll benennen.'; }
+    else {
+      if (!bassInChord) main = { ...main, name: main.name + '/' + plainName(bass) };
+      cands = [main].concat(all.filter(c => c !== main && c.root !== state.cRoot)
+        .map(c => bassInChord ? c : { ...c, name: c.name + '/' + plainName(bass) }));
+      if (!bassInChord) cands = [main];   // Fremdbass: Alternativen wären irreführend
+      fixedRoot = state.cRoot;
+    }
+  } else if (state.cmode === 'text') {
+    const toks = state.cText.split(/[\s,;\-–]+/).filter(Boolean);
+    const pcsList = [], bad = [];
+    toks.forEach(t => { const p = parseNoteToken(t); p === null ? bad.push(t) : pcsList.push(p); });
+    if (bad.length) error = 'Nicht erkannt: ' + bad.join(', ');
+    if (pcsList.length) cands = recognize(new Set(pcsList), pcsList[0]);
+  } else {
+    const pcsList = [];
+    let bass = null;
+    for (let s = 0; s < 6; s++) {
+      const f = state.grip[s];
+      if (f === null || f > state.frets) { muted.push(s); continue; }
+      const pc = mod12(open[s] + f);
+      if (bass === null) bass = pc;
+      pcsList.push(pc);
+    }
+    if (pcsList.length) cands = recognize(new Set(pcsList), bass);
+    clickable = (s, f) => { state.grip[s] = state.grip[s] === f ? null : f; state.cPick = 0; render(); };
+    $('gripTab').textContent = state.grip.map(f => f === null ? 'x' : f).join(' ');
+  }
+
+  if (state.cPick >= cands.length) state.cPick = 0;
+  const pick = cands[state.cPick];
+
+  // Markierungen
+  if (pick) {
+    const toneOf = pc => pick.tones.find(t => t.pc === pc);
+    if (state.cmode === 'grip') {
+      for (let s = 0; s < 6; s++) {
+        const f = state.grip[s];
+        if (f === null || f > state.frets) continue;
+        const t = toneOf(mod12(open[s] + f));
+        marks.push({ s, f, kind: chordMarkKind(t), text: state.label === 'note' ? t.name : t.label });
+      }
+    } else {
+      for (let s = 0; s < 6; s++) for (let f = 0; f <= state.frets; f++) {
+        const pc = mod12(open[s] + f), t = toneOf(pc);
+        if (t) marks.push({ s, f, kind: chordMarkKind(t), text: state.label === 'note' ? t.name : t.label });
+        else if (state.cmode === 'build' && state.cOverlay) {
+          const iv = mod12(pc - state.root);
+          if (SCALE[state.scale].ints.includes(iv)) marks.push({ s, f, kind: 'ghost' });
+        }
+      }
+      if (state.cmode === 'build' && state.cOverlay) marks.sort((a, b) => (a.kind === 'ghost' ? -1 : 0) - (b.kind === 'ghost' ? -1 : 0));
+    }
+  }
+  drawBoard(marks, { clickable, muted });
+
+  // Texte
+  $('cName').textContent = pick ? pick.name : (state.cmode === 'grip' ? 'Griff eingeben' : '–');
+  $('cNotes').innerHTML = (error ? `<span class="err">${error}</span> &nbsp; ` : '') + (pick ? pick.tones.map(t =>
+    `<span class="${t.iv === 0 ? 'r' : chordMarkKind(t) === 'char' ? 'c' : ''}">${t.name}</span><small>${t.label}</small>`).join(' &nbsp; ') : '');
+  const cc = $('cCands'); cc.innerHTML = '';
+  if (cands.length > 1) {
+    const lbl = document.createElement('span'); lbl.className = 'muted';
+    lbl.textContent = 'Deutungen:'; cc.appendChild(lbl);
+    cands.slice(0, 8).forEach((c, i) => {
+      const b = document.createElement('button'); b.textContent = c.name;
+      b.className = i === state.cPick ? 'on' : '';
+      b.onclick = () => { state.cPick = i; render(); };
+      cc.appendChild(b);
+    });
+  }
+  setLegend([
+    ['root', 'Grundton'], ['note', 'Terz, Quinte, Septime'], ['char', 'Optionstöne (6, 9, 11, 13 …)'],
+    state.cmode === 'build' && state.cOverlay && ['ghost', 'Skala ' + $('title').textContent]
+  ]);
+}
+
+// ================= Bedienung =================
+const $ = id => document.getElementById(id);
+function setLegend(items) {
+  $('legend').innerHTML = items.filter(Boolean).map(([k, t]) => {
+    const st = k === 'ghost' ? 'class="ring"' : `style="background:var(--${k === 'note' ? 'note' : k})"`;
+    return `<span><i ${st}></i>${t}</span>`;
+  }).join('');
+}
+function syncSeg(id, val) {
+  document.querySelectorAll(`#${id} button`).forEach(b => b.classList.toggle('on', b.dataset.v === String(val)));
+}
+function fillStatic() {
+  let og = null, g = null;
+  SCALES.forEach(s => {
+    if (s.group !== g) { og = document.createElement('optgroup'); og.label = g = s.group; $('scale').appendChild(og); }
+    const o = document.createElement('option'); o.value = s.id; o.textContent = s.name; og.appendChild(o);
+  });
+  TUNINGS.forEach(t => { const o = document.createElement('option'); o.value = t.id; o.textContent = t.name; $('tuning').appendChild(o); });
+  EXTS.forEach(([n]) => {
+    const b = document.createElement('button'); b.dataset.v = n; b.textContent = n;
+    b.onclick = () => {
+      state.cExt = state.cExt.includes(n) ? state.cExt.filter(x => x !== n) : state.cExt.concat(n);
+      state.cPick = 0; render();
+    };
+    $('cExt').appendChild(b);
+  });
+}
+function fillDynamic() {
+  // Skalen-Grundtöne
+  const rs = $('root'); rs.innerHTML = '';
+  for (let pc = 0; pc < 12; pc++) {
+    const r = spellRoot(pc, SCALE[state.scale]);
+    const o = document.createElement('option'); o.value = pc; o.textContent = fmt(r.letter, r.acc); rs.appendChild(o);
+  }
+  rs.value = state.root;
+  const base = SCALE[state.scale].boxBase || SCALE[state.scale].ints;
+  if (state.box > base.length) state.box = 0;
+  $('boxTitle').textContent = base.length <= 5 ? 'Box (2 Töne/Saite)' : 'Position (3 Töne/Saite)';
+  const bx = $('box'); bx.innerHTML = '';
+  for (let i = 0; i <= base.length; i++) {
+    const b = document.createElement('button'); b.dataset.v = i; b.textContent = i ? i : 'Alle';
+    b.onclick = () => { state.box = i; render(); };
+    bx.appendChild(b);
+  }
+  // Akkord-Grundton und Bass
+  const cr = $('cRoot'), cb = $('cBass'); cr.innerHTML = ''; cb.innerHTML = '<option value="-1">Grundton</option>';
+  for (let pc = 0; pc < 12; pc++) {
+    const o = document.createElement('option'); o.value = pc; o.textContent = plainName(pc); cr.appendChild(o);
+    const o2 = document.createElement('option'); o2.value = pc; o2.textContent = '/' + plainName(pc); cb.appendChild(o2);
+  }
+  cr.value = state.cRoot; cb.value = state.cBass;
+}
+function render() {
+  fillDynamic();
+  syncSeg('tabs', state.tab); syncSeg('label', state.label); syncSeg('box', state.box); syncSeg('cmode', state.cmode);
+  document.querySelectorAll('#cExt button').forEach(b => b.classList.toggle('on', state.cExt.includes(b.dataset.v)));
+  $('scale').value = state.scale; $('tuning').value = state.tuning; $('frets').value = state.frets;
+  $('blue').checked = state.blue; $('char').checked = state.char; $('german').checked = state.german;
+  $('cBase').value = state.cBase; $('cFifth').value = state.cFifth; $('cSeventh').value = state.cSeventh;
+  $('cOverlay').checked = state.cOverlay;
+  if (document.activeElement !== $('cTextIn')) $('cTextIn').value = state.cText;
+  // °7 nur bei vermindert sinnvoll
+  $('cSeventh').querySelector('[value=dim7]').disabled = state.cBase !== 'dim';
+  if (state.cSeventh === 'dim7' && state.cBase !== 'dim') state.cSeventh = '7', $('cSeventh').value = '7';
+
+  const sc = state.tab === 'scales';
+  $('pScales').classList.toggle('hidden', !sc); $('hintScales').classList.toggle('hidden', !sc);
+  $('pChords').classList.toggle('hidden', sc);  $('hintChords').classList.toggle('hidden', sc);
+  ['build', 'text', 'grip'].forEach(m => $('c' + m[0].toUpperCase() + m.slice(1)).classList.toggle('hidden', sc || state.cmode !== m));
+
+  renderScales();                 // setzt auch den Skalentitel für die Überlagerungs-Legende
+  if (!sc) renderChords();
+  try { localStorage.setItem('skalen-v3', JSON.stringify(state)); } catch (e) {}
+}
+
+fillStatic();
+const on = (id, ev, fn) => $(id).addEventListener(ev, e => { fn(e); render(); });
+on('root', 'change', e => state.root = +e.target.value);
+on('scale', 'change', e => state.scale = e.target.value);
+on('tuning', 'change', e => state.tuning = e.target.value);
+on('frets', 'change', e => state.frets = +e.target.value);
+on('blue', 'change', e => state.blue = e.target.checked);
+on('char', 'change', e => state.char = e.target.checked);
+on('german', 'change', e => state.german = e.target.checked);
+on('cRoot', 'change', e => { state.cRoot = +e.target.value; state.cPick = 0; });
+on('cBase', 'change', e => { state.cBase = e.target.value; state.cPick = 0; });
+on('cFifth', 'change', e => { state.cFifth = e.target.value; state.cPick = 0; });
+on('cSeventh', 'change', e => { state.cSeventh = e.target.value; state.cPick = 0; });
+on('cBass', 'change', e => { state.cBass = +e.target.value; state.cPick = 0; });
+on('cOverlay', 'change', e => state.cOverlay = e.target.checked);
+on('cTextIn', 'input', e => { state.cText = e.target.value; state.cPick = 0; });
+on('gripClear', 'click', () => { state.grip = [null, null, null, null, null, null]; state.cPick = 0; });
+[['tabs', 'tab'], ['label', 'label'], ['cmode', 'cmode']].forEach(([id, key]) =>
+  document.querySelectorAll(`#${id} button`).forEach(b => b.onclick = () => { state[key] = b.dataset.v; state.cPick = 0; render(); }));
+render();
+try { window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', render); } catch (e) {}
+
+// ================= Offline-Betrieb =================
+// Service Worker anmelden (siehe sw.js). Danach im Hintergrund nach einer neuen Version sehen;
+// eine neue Version wird erst beim nächsten Start der App übernommen.
+if ('serviceWorker' in navigator) {
+  (async () => {
+    try {
+      await navigator.serviceWorker.register('./sw.js');
+      await navigator.serviceWorker.ready;
+      if (!navigator.serviceWorker.controller) {
+        await new Promise(fertig => navigator.serviceWorker.addEventListener('controllerchange', fertig, { once: true }));
+      }
+      setTimeout(() => {
+        if (navigator.onLine) navigator.serviceWorker.controller?.postMessage({ art: 'pruefen' });
+      }, 3000);
+    } catch (e) {
+      console.warn('Offline-Betrieb nicht verfügbar:', e);
+    }
+  })();
+}
+</script>
+</body>
+</html>
